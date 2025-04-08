@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Research projects
+    match /research_projects/{projectId} {
+      allow read: if isSignedIn() && (
+        isOwner(resource.data.userId) || 
+        resource.data.collaborators.hasAny([request.auth.uid])
+      );
+      allow create: if isSignedIn() && isOwner(request.resource.data.userId);
+      allow update: if isSignedIn() && (
+        isOwner(resource.data.userId) || 
+        resource.data.collaborators.hasAny([request.auth.uid])
+      );
+      allow delete: if isSignedIn() && isOwner(resource.data.userId);
+    }
+    
+    // Tasks
+    match /tasks/{taskId} {
+      allow read: if isSignedIn() && exists(/databases/$(database)/documents/research_projects/$(resource.data.projectId)) && (
+        get(/databases/$(database)/documents/research_projects/$(resource.data.projectId)).data.userId == request.auth.uid ||
+        get(/databases/$(database)/documents/research_projects/$(resource.data.projectId)).data.collaborators.hasAny([request.auth.uid])
+      );
+      allow create: if isSignedIn() && exists(/databases/$(database)/documents/research_projects/$(request.resource.data.projectId)) && (
+        get(/databases/$(database)/documents/research_projects/$(request.resource.data.projectId)).data.userId == request.auth.uid ||
+        get(/databases/$(database)/documents/research_projects/$(request.resource.data.projectId)).data.collaborators.hasAny([request.auth.uid])
+      );
+      allow update, delete: if isSignedIn() && exists(/databases/$(database)/documents/research_projects/$(resource.data.projectId)) && (
+        get(/databases/$(database)/documents/research_projects/$(resource.data.projectId)).data.userId == request.auth.uid ||
+        get(/databases/$(database)/documents/research_projects/$(resource.data.projectId)).data.collaborators.hasAny([request.auth.uid])
+      );
+    }
+
+    // User points and achievements
+    match /points/{userId} {
+      allow read: if isSignedIn() && isOwner(userId);
+      allow write: if isSignedIn() && isOwner(userId);
+    }
+    
+    // Rewards
+    match /rewards/{rewardId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Only admins can modify rewards
+    }
+  }
+}
