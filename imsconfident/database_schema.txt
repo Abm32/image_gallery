@@ -1,0 +1,249 @@
+# Inventory Management System (IMS) Database Schema Documentation
+
+## Table of Contents
+1. Core Tables
+2. Approval System
+3. Master Data Tables
+4. Project Management
+5. User Management
+6. Access Control
+7. Change Tracking
+8. Project Team Management
+
+## 1. Core Tables
+
+### Indent (Main Purchase Requisition Table)
+Primary Key: IndentID (int, auto-increment)
+Foreign Keys:
+- UserID (int) - References Users.UserID
+- ProjectID (int) - References MProject.ProjectID
+- StageID (int) - References MStage.StageID
+- TypeID (int) - References MIndentType.TypeID
+
+Fields:
+- CreationDate (date) - Date when indent was created
+- Status (varchar(20)) - Current status of the indent
+- ForceClosureStatus (tinyint(1)) - Whether indent was force closed
+- L1A, L2, PO, PH, IR, SH (tinyint(1)) - Approval level flags
+- isDraft (tinyint(1)) - Whether indent is in draft state
+- IsL1, IsL2, IsPO, isPH, IsIR (tinyint(1)) - Approval status flags
+- IsClosed (tinyint(1)) - Whether indent is closed
+- ClosedDate (timestamp) - Date when indent was closed
+- ClosedByUserID (int) - User who closed the indent
+- TaskSchedule (text) - Task scheduling information
+- podetails (text) - Purchase order details
+- MergedTo (int) - ID of indent this was merged into
+- isDeleted (tinyint(1)) - Whether indent is deleted
+
+### IndentItems (Items within Indents)
+Primary Key: IndentItemID (int, auto-increment)
+Foreign Keys:
+- IndentID (int) - References Indent.IndentID
+- ItemID (int) - References MItem.ItemID
+- AccountingUnitID (int) - References MAu.UnitID
+- CategoryID (int) - References MCategory.CategoryID
+
+Fields:
+- Quantity (decimal(10,3)) - Requested quantity
+- Description (varchar(255)) - Item description
+- PromisedDate (date) - Date when item is promised
+- Stock (int) - Current stock level
+- IsDraft, IsSubmitted (tinyint(1)) - Status flags
+- CommitedDate (date) - Date when item was committed
+- QuantityReceived (decimal(10,3)) - Actual quantity received
+- Difference (int) - Difference between requested and received
+- IsClosed (tinyint(1)) - Whether item is closed
+- ForceClosure (tinyint(1)) - Whether item was force closed
+- ForceClosedByUserID (int) - User who force closed the item
+- ForceClosedDate (datetime) - Date when item was force closed
+- Remarks (text) - Additional remarks
+
+## 2. Approval System
+
+### IndentApprovals
+Fields:
+- CurrentLevel (varchar(50)) - Current approval level
+- Status (varchar(20)) - Approval status
+- ApprovedBy (varchar(100)) - Name of approver
+- Time (timestamp) - Approval timestamp
+- ForceClose (tinyint(1)) - Whether approval was force closed
+- DeletedBy (int) - User who deleted the approval
+- IndentID (int) - References Indent.IndentID
+- IndentLevel (varchar(255)) - Level of indent approval
+
+### IndentItemApprovals
+Primary Key: ApprovalID (int, auto-increment)
+Foreign Keys:
+- IndentItemID (int) - References IndentItems.IndentItemID
+- ApprovedBy (int) - References Users.UserID
+
+Fields:
+- Status (varchar(50)) - Approval status
+- ApprovalTime (datetime) - Time of approval
+- ForceClose (tinyint(1)) - Whether approval was force closed
+
+## 3. Master Data Tables
+
+### MItem (Items Master)
+Primary Key: ItemID (int, auto-increment)
+Foreign Keys:
+- CategoryID (int) - References MCategory.CategoryID
+- AccountingUnitID (int) - References MAu.UnitID
+
+Fields:
+- ItemName (varchar(57)) - Name of the item
+- Description (text) - Item description
+- EnteredBy (int) - User who created the item
+
+### MCategory (Categories)
+Primary Key: CategoryID (int, auto-increment)
+Fields:
+- CategoryName (varchar(50)) - Name of category
+- NormalDays (int) - Normal processing days
+- EmergencyDays (int) - Emergency processing days
+- EnteredBy (int) - User who created category
+
+### MAu (Accounting Units)
+Primary Key: UnitID (int, auto-increment)
+Fields:
+- UnitName (varchar(50)) - Name of unit
+- Description (text) - Unit description
+- EnteredBy (int) - User who created unit
+
+### MIndentType (Indent Types)
+Primary Key: TypeID (int, auto-increment)
+Fields:
+- TypeName (varchar(50)) - Name of indent type
+- TypePeriod (date) - Start period
+- TypePeriodTo (date) - End period
+
+## 4. Project Management
+
+### MProject
+Primary Key: ProjectID (int, auto-increment)
+Foreign Keys:
+- LocationID (int) - References MLocation.LocationID
+- StageID (int) - References MStage.StageID
+
+Fields:
+- ProjectName (varchar(100)) - Name of project
+- ProjectIncharge (int) - Project incharge user ID
+- MailID (varchar(50)) - Project email
+- SOID (int) - Store officer ID
+- EnteredBy (int) - User who created project
+
+### MLocation
+Primary Key: LocationID (int, auto-increment)
+Fields:
+- LocationName (varchar(100)) - Name of location
+- LocationEmail (varchar(50)) - Location email
+- LHead (int) - Location head user ID
+- EnteredBy (int) - User who created location
+
+## 5. User Management
+
+### Users
+Primary Key: UserID (int, auto-increment)
+Fields:
+- Username (varchar(50)) - User login name
+- Email (varchar(100), unique) - User email
+- Password (varchar(255)) - Hashed password
+- Name (varchar(255)) - Full name
+- Designation (varchar(255)) - User designation
+- ResetToken (varchar(255)) - Password reset token
+- ResetTokenExpiry (datetime) - Token expiry time
+
+### MRoles
+Primary Key: RoleID (int, auto-increment)
+Foreign Key: UserID (int) - References Users.UserID
+
+Fields:
+- Username (varchar(50)) - User name
+- Role (varchar(20)) - User role
+- IndentCreationRights (varchar(20)) - Indent creation permissions
+- Email (varchar(100)) - User email
+- isAuthorized (tinyint(1)) - Authorization status
+
+## 6. Access Control
+
+### MasterAccess
+Primary Key: UserID (int) - References Users.UserID
+Fields:
+- LocationAccess (tinyint(1)) - Location access permission
+- ProjectAccess (tinyint(1)) - Project access permission
+- CategoryAccess (tinyint(1)) - Category access permission
+- UnitAccess (tinyint(1)) - Unit access permission
+- ItemsAccess (tinyint(1)) - Items access permission
+
+## 7. Change Tracking
+
+### indent_change_logs
+Primary Key: id (int, auto-increment)
+Foreign Key: user_id (int) - References Users.UserID
+
+Fields:
+- change_type (enum('add','update','delete')) - Type of change
+- original_data (longtext) - Original data before change
+- updated_data (longtext) - Updated data after change
+- item_data (longtext) - Related item data
+- created_at (timestamp) - Change timestamp
+- Currentlevel (varchar(50)) - Current approval level
+- indent_id (int) - References Indent.IndentID
+
+## 8. Project Team Management
+
+### ProjectTeam
+Primary Key: SlNo (int, auto-increment)
+Foreign Keys:
+- ProjectID (int) - References MProject.ProjectID
+- UserID (int) - References Users.UserID
+
+Fields:
+- AssignedDate (datetime) - Date of assignment
+- SOID (int) - Store officer ID
+- Project (int) - Project reference
+- Users (int) - User reference
+
+### ProjectLead
+Primary Key: SlNo (int, auto-increment)
+Foreign Keys:
+- ProjectID (int) - References MProject.ProjectID
+- ProjectIncharge (int) - References Users.UserID
+
+## Key Features
+
+1. Multi-level Approval Workflow
+   - L1 (Level 1) Approval
+   - L2 (Level 2) Approval
+   - PO (Purchase Order) Processing
+   - PH (Purchase Head) Approval
+   - IR (Item Received) Confirmation
+   - SH (Store Head) Final Approval
+
+2. Comprehensive Item Management
+   - Category-based organization
+   - Unit of measurement tracking
+   - Stock level monitoring
+   - Quantity tracking
+
+3. Project Organization
+   - Location-based structure
+   - Project team assignments
+   - Project leadership tracking
+
+4. Security and Access Control
+   - Role-based permissions
+   - Granular access control
+   - User authentication
+   - Password reset functionality
+
+5. Audit and Change Tracking
+   - Detailed change logs
+   - Approval history
+   - Force closure tracking
+
+6. Data Integrity
+   - Foreign key relationships
+   - Auto-incrementing primary keys
+   - Appropriate data types
+   - Unique constraints where needed 
